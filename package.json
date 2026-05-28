@@ -1,0 +1,17 @@
+{
+  "name": "@agiterra/mcp-tee",
+  "version": "0.1.0",
+  "description": "Wraps an MCP server command so its stderr is teed to a logfile while preserving original stderr.",
+  "bin": {
+    "mcp-tee": "./bin/mcp-tee.sh"
+  },
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT",
+  "author": "Tim Garthwaite <https://github.com/mividtim>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agiterra/mcp-tee.git"
+  }
+}
