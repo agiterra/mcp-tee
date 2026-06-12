@@ -1,6 +1,6 @@
 {
   "name": "@agiterra/mcp-tee",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Wraps an MCP server command so its stderr is teed to a logfile while preserving original stderr.",
   "bin": {
     "mcp-tee": "./bin/mcp-tee.sh"

@@ -11,7 +11,10 @@
 #     "args": ["wire", "bun", "run", "--cwd", "${CLAUDE_PLUGIN_ROOT}", "--silent", "start"]
 #   }
 #
-# Output: appends to $MCP_LOG_DIR/<log-name>.log (default ~/.wire/mcp-stderr/).
+# Output: appends to $MCP_LOG_DIR/<log-name>.log (default ~/.wire/mcp-stderr/),
+# each line stamped "<ISO-time> [<server-pid>:<AGENT_ID or ?>] <line>" plus a
+# "=== start: <command> ===" header per server start. The stream the parent
+# captures stays byte-identical — stamping is file-copy only.
 # Rotation: rename to <log-name>.log.1 if it exceeds $MCP_LOG_ROTATE_BYTES at
 # startup (default 10MB). Single-generation, no daemon.
 #
@@ -48,4 +51,23 @@ if [ -f "$log" ]; then
     fi
 fi
 
-exec "$@" 2> >(tee -a "$log" >&2)
+# Stamp every logged line with time + server pid + agent id so the shared,
+# fleet-wide log file stays attributable (the raw tee stream had no way to
+# tell sessions apart — that cost two RCAs on 2026-06-12). The ORIGINAL
+# stderr stream stays byte-identical: stamping happens only on the file copy.
+# perl, not awk/date: BSD awk lacks strftime, date-per-line forks a process
+# per line; perl line-buffers both sinks. $$ expands before exec replaces the
+# shell, so the tag pid IS the server's pid. Agent id comes from AGENT_ID in
+# the server's env (all agiterra plugins carry it), '?' when absent.
+exec "$@" 2> >(perl -MPOSIX -we '
+  my ($log, $tag, $cmd) = @ARGV; @ARGV = ();
+  open my $fh, ">>", $log or die "mcp-tee: cannot open $log: $!";
+  select((select($fh), $| = 1)[0]);
+  $| = 1;
+  my $ts = sub { strftime("%Y-%m-%dT%H:%M:%S%z", localtime) };
+  print $fh $ts->() . " [$tag] === start: $cmd ===\n";
+  while (<STDIN>) {
+    print STDERR $_;
+    print $fh $ts->() . " [$tag] " . $_;
+  }
+' "$log" "$$:${AGENT_ID:-?}" "$*")
